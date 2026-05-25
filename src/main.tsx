@@ -61,6 +61,33 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!roomCode) return;
+    let cancelled = false;
+
+    async function loadRoom() {
+      try {
+        const response = await fetch(`/api/rooms/${roomCode}`);
+        if (!response.ok) throw new Error("Room not found");
+        const data = await response.json();
+        if (!cancelled) {
+          setRoom(data.room);
+          setError("");
+        }
+      } catch {
+        if (!cancelled) {
+          setRoom(null);
+          setError("That room was not found. Check the code or create a new room.");
+        }
+      }
+    }
+
+    void loadRoom();
+    return () => {
+      cancelled = true;
+    };
+  }, [roomCode]);
+
+  useEffect(() => {
     if (!socket || !roomCode) return;
     const saved = localStorage.getItem(playerKey(roomCode));
     if (!saved) return;
