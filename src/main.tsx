@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { io, type Socket } from "socket.io-client";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,6 +10,9 @@ import "./styles.css";
 const avatars = ["🦊", "🐼", "🦄", "🐙", "🚀", "🌈", "🍕", "🎸", "⚽", "⭐", "🐢", "🍩"];
 const playerKey = (roomCode: string) => `shush:player:${roomCode}`;
 const hostKey = (roomCode: string) => `shush:host:${roomCode}`;
+const musicPreferenceKey = "shush:music-enabled";
+const themeSrc = "/audio/price-is-right-theme.mp3";
+const introSrc = "/audio/shush-trivia-intro.m4a";
 
 type Profile = {
   playerId: string;
@@ -42,6 +45,38 @@ function App() {
   const [categoryVote, setCategoryVote] = useState<Category>("Animals");
   const [error, setError] = useState("");
   const [now, setNow] = useState(Date.now());
+  const [musicEnabled, setMusicEnabled] = useState(() => localStorage.getItem(musicPreferenceKey) !== "false");
+  const themeAudioRef = useRef<HTMLAudioElement | null>(null);
+  const introAudioRef = useRef<HTMLAudioElement | null>(null);
+  const introPlayedRef = useRef(false);
+
+  useEffect(() => {
+    themeAudioRef.current = new Audio(themeSrc);
+    themeAudioRef.current.loop = true;
+    themeAudioRef.current.volume = 0.22;
+    introAudioRef.current = new Audio(introSrc);
+    introAudioRef.current.volume = 0.9;
+
+    if (musicEnabled) {
+      playIntroOnce();
+      startThemeIfEnabled();
+    }
+
+    return () => {
+      themeAudioRef.current?.pause();
+      introAudioRef.current?.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(musicPreferenceKey, String(musicEnabled));
+    if (!musicEnabled) {
+      themeAudioRef.current?.pause();
+      return;
+    }
+    playIntroOnce();
+    startThemeIfEnabled();
+  }, [musicEnabled]);
 
   useEffect(() => {
     const nextSocket = io();
@@ -121,8 +156,33 @@ function App() {
       : room?.timerSeconds || 20;
   const leaderboard = [...(room?.players || [])].sort((a, b) => b.score - a.score || b.correctAnswers - a.correctAnswers);
 
+  function playIntroOnce() {
+    const intro = introAudioRef.current;
+    if (!intro || introPlayedRef.current) return;
+    intro.currentTime = 0;
+    void intro.play()
+      .then(() => {
+        introPlayedRef.current = true;
+      })
+      .catch(() => undefined);
+  }
+
+  function startThemeIfEnabled() {
+    if (!musicEnabled) return;
+    void themeAudioRef.current?.play().catch(() => undefined);
+  }
+
+  function updateMusicPreference(enabled: boolean) {
+    setMusicEnabled(enabled);
+    if (!enabled) {
+      themeAudioRef.current?.pause();
+    }
+  }
+
   async function createRoom() {
     setError("");
+    playIntroOnce();
+    startThemeIfEnabled();
     const response = await fetch("/api/rooms", { method: "POST" });
     const data = await response.json();
     localStorage.setItem(hostKey(data.room.roomCode), data.hostKey);
@@ -132,6 +192,8 @@ function App() {
   }
 
   function goToJoinRoom() {
+    playIntroOnce();
+    startThemeIfEnabled();
     const code = joinCode.trim().toUpperCase();
     if (!code) {
       setError("Enter a room code first.");
@@ -143,6 +205,8 @@ function App() {
   }
 
   function joinGame() {
+    playIntroOnce();
+    startThemeIfEnabled();
     if (!socket || !roomCode) return;
     const trimmedName = joinName.trim();
     if (!trimmedName) {
@@ -216,6 +280,7 @@ function App() {
     setRoomCode("");
     setJoinCode("");
     setError("");
+    themeAudioRef.current?.pause();
     window.history.pushState({}, "", "/");
   }
 
@@ -229,6 +294,17 @@ function App() {
             <p className="lede">A fast, friendly trivia party game for families, couches, classrooms, and kitchen tables.</p>
           </div>
           <div className="home-actions">
+            <fieldset className="music-toggle">
+              <legend>Background music</legend>
+              <label>
+                <input type="radio" name="music" checked={musicEnabled} onChange={() => updateMusicPreference(true)} />
+                On
+              </label>
+              <label>
+                <input type="radio" name="music" checked={!musicEnabled} onChange={() => updateMusicPreference(false)} />
+                Off
+              </label>
+            </fieldset>
             <button className="primary-button" onClick={createRoom}>
               <Play size={20} /> Create Room
             </button>

@@ -24,6 +24,13 @@ input {
   font: inherit;
 }
 
+input[type="radio"] {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  accent-color: #29b574;
+}
+
 button {
   border: 0;
   cursor: pointer;
@@ -149,6 +156,38 @@ input:disabled {
   display: grid;
   gap: 14px;
   padding: 18px;
+}
+
+.music-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.music-toggle legend {
+  grid-column: 1 / -1;
+  margin-bottom: 2px;
+  color: #e14f67;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.music-toggle label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 2px solid #172033;
+  border-radius: 8px;
+  background: #fff;
+  color: #172033;
+  font-weight: 900;
 }
 
 .grid-layout {
